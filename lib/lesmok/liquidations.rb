@@ -11,5 +11,11 @@ class Symbol
 end
 
 class Struct
-  include ::Lesmok::Acid::Meltable  # A bit heavy-handed.
+  def to_liquid
+    hash = Hash.new
+    self.members.each do |k|
+      hash[k.to_s] = self[k]
+    end
+    hash
+  end
 end
