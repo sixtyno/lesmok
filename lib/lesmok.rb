@@ -2,6 +2,7 @@ require 'lesmok/version'
 require 'lesmok/config'
 require 'lesmok/tags'
 require 'lesmok/acid'
+require 'lesmok/backwards_compatibility'
 
 module Lesmok
   module ClassMethods
