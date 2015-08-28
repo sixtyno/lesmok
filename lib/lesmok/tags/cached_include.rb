@@ -29,16 +29,6 @@ module Lesmok
           result = perform_cached_inclusion_rendering_for(context, cache_store, cache_key) do
             super
           end
-          lesmok_logger.debug "[#{self.class}] Lookup #{cache_key} in #{cache_store}..." if Lesmok.config.debugging?
-          result = cache_store.fetch(cache_key, expires_in: expire_in) do
-            lesmok_logger.debug "[#{self.class}] --- cache miss on #{cache_key} in #{cache_store}!" if Lesmok.config.debugging?
-            rendered_str = super
-            if Lesmok.config.serve_stale_content? && rendered_str.present?
-              stale_cache_store = select_cache_store_for(context, :stale)
-              stale_cache_store.set(cache_key + STALE_BREAD_KEY_SUFFIX, rendered_str, expires_in: nil)
-            end
-            rendered_str
-          end
 
           if context.errors.present?
             lesmok_logger.debug "[lesmok] -- Liquid errors (#{context.errors.size}) seen in: #{template_name}"
