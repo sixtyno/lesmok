@@ -12,16 +12,57 @@ module Lesmok
         include ExpiryCalculation
         extend  GlobalKeyHandling
 
+        STALE_BREAD_KEY_SUFFIX = ':LESMOK-STALE-BREAD'
+
         def render(context)
           return super unless fragment_caching_enabled?
+          cache_val = calculate_cache_key_for(context)
+
+          return super unless cache_val.present?
+
+          template_name = context[@template_name]
+
+          expire_in = calculate_expiry(context[@attributes['cache_on']], context[@attributes['expire_in']])
+          cache_key = self.class.full_cache_key_for(cache_val, template_name)
+          cache_store = select_cache_store_for(context)
+
+          Lesmok.logger.debug "[#{self.class}] Lookup #{cache_key} in #{cache_store}..." if Lesmok.config.debugging?
+          result = cache_store.fetch(cache_key, expires_in: expire_in) do
+            Lesmok.logger.debug "[#{self.class}] --- cache miss on #{cache_key} in #{cache_store}!" if Lesmok.config.debugging?
+            rendered_str = super
+            if Lesmok.config.serve_stale_content? && rendered_str.present?
+              stale_cache_store = select_cache_store_for(context, :stale)
+              stale_cache_store.set(cache_key + STALE_BREAD_KEY_SUFFIX, rendered_str, expires_in: nil)
+            end
+            rendered_str
+          end
+
+          if context.errors.present?
+            ::Lesmok.logger.debug "[lesmok] -- Liquid errors (#{context.errors.size}) seen in: #{template_name}"
+          end
+
+          result
+        rescue Exception => err
+          log_exception(err, context)
+          if Lesmok.config.serve_stale_content? && cache_key.present?
+            stale_cache_store = select_cache_store_for(context, :stale)
+
+            stale = stale_cache_store.get(cache_key + STALE_BREAD_KEY_SUFFIX)
+            ::Lesmok.logger.warn "[lesmok] Serving stale content in: #{template_name}  [#{cache_key}]" if stale.present?
+            stale
+          else
+            ""
+          end
+        end
+
+        def calculate_cache_key_for(context)
           cached_on_obj = context[@attributes['cache_on']]
           cache_val = cached_on_obj && cached_on_obj.respond_to?(:cache_key) && cached_on_obj.cache_key
           cache_val ||= context[@attributes['cache_key']]
 
-          template_name = context[@template_name]
-
           ## Catch cases where cached_include is used incorrectly.
           if cache_val.blank?
+            template_name = context[@template_name]
             if Lesmok.config.debugging?
               Lesmok.logger.warn "[#{self.class}] No valid cache key given for '#{template_name}' template!"
               Lesmok.logger.debug " -- No cache key given nor found for object: #{cached_on_obj.inspect.truncate(64)}"
@@ -30,34 +71,14 @@ module Lesmok
               raise ArgumentError.new("No valid cache key! given for '#{template_name}' template!")
             end
           end
-
-          return super unless cache_val.present?
-
           ## Allow sub-scoping w/o manually creating cache key.
           cache_subscope = context[@attributes['cache_scope']]
           cache_val += ":SUBSCOPE-#{cache_subscope}" if cache_subscope.present?
-
-          expire_in = calculate_expiry(cached_on_obj, context[@attributes['expire_in']])
-          cache_key = self.class.full_cache_key_for(cache_val, template_name)
-          cache_store = select_cache_store_for(context)
-          Lesmok.logger.debug "[#{self.class}] Lookup #{cache_key} in #{cache_store}..." if Lesmok.config.debugging?
-          result = cache_store.fetch(cache_key, expires_in: expire_in) do
-            Lesmok.logger.debug "[#{self.class}] --- cache miss on #{cache_key} in #{cache_store}!" if Lesmok.config.debugging?
-            super
-          end
-
-          if context.errors.present?
-            ::Lesmok.logger.debug " -- Liquid errors (#{context.errors.size}) seen in: #{@template_name}"
-          end
-
-          result
-        rescue Exception => err
-          log_exception(err, context)
-          ""
+          cache_val
         end
 
-        def select_cache_store_for(context)
-          cache_store_name = context[@attributes['cache_store']]
+        def select_cache_store_for(context, fallback_store_name = nil)
+          cache_store_name = context[@attributes['cache_store']] || fallback_store_name
           cache_store = Lesmok.config.find_cache_store(cache_store_name)
         end
 

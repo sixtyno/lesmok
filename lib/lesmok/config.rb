@@ -3,10 +3,12 @@ module Lesmok
     attr_accessor :logger
     attr_accessor :cache
     attr_accessor :caching_enabled
+    attr_accessor :serve_stale_content
     attr_accessor :available_cache_stores
     attr_accessor :debugging_enabled
     attr_accessor :raise_errors_enabled
 
+    alias :serve_stale_content? :serve_stale_content
     alias :raise_errors? :raise_errors_enabled
     alias :debugging? :debugging_enabled
 
