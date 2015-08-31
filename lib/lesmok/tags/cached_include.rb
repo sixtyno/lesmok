@@ -26,29 +26,23 @@ module Lesmok
           cache_key = self.class.full_cache_key_for(cache_val, template_name)
           cache_store = select_cache_store_for(context)
 
-          result = perform_cached_inclusion_rendering_for(context, cache_store, cache_key) do
+          num_previous_errs = context.errors.size
+          result = perform_cached_inclusion_rendering_for(context, cache_store, cache_key, expire_in) do
             super
           end
 
-          if context.errors.present?
+          if context.errors.size > num_previous_errs
             lesmok_logger.debug "[lesmok] -- Liquid errors (#{context.errors.size}) seen in: #{template_name}"
+            return serve_any_stale_cached_content(context, cache_key)
           end
 
           result
         rescue Exception => err
           log_exception(err, context)
-          if Lesmok.config.serve_stale_content? && cache_key.present?
-            stale_cache_store = select_cache_store_for(context, :stale)
-            stale = stale_cache_store.get(cache_key + STALE_BREAD_KEY_SUFFIX)
-            lesmok_logger.warn "[lesmok] Serving stale content in: #{template_name}  [#{cache_key}]" if stale.present?
-            stale
-          else
-            ""
-          end
+          serve_any_stale_cached_content(context, cache_key) || ""
         end
 
-
-        def perform_cached_inclusion_rendering_for(context, cache_store, cache_key) do
+        def perform_cached_inclusion_rendering_for(context, cache_store, cache_key, expire_in)
           lesmok_logger.debug "[#{self.class}] Lookup #{cache_key} in #{cache_store}..." if Lesmok.config.debugging?
           result = cache_store.fetch(cache_key, expires_in: expire_in) do
             lesmok_logger.debug "[#{self.class}] --- cache miss on #{cache_key} in #{cache_store}!" if Lesmok.config.debugging?
@@ -60,6 +54,18 @@ module Lesmok
             rendered_str
           end
           result
+        end
+
+        def serve_any_stale_cached_content(context, cache_key)
+          if Lesmok.config.serve_stale_content? && cache_key.present?
+            stale_cache_store = select_cache_store_for(context, :stale)
+            stale = stale_cache_store.get(cache_key + STALE_BREAD_KEY_SUFFIX)
+            lesmok_logger.warn "[lesmok] Serving stale content in: #{context[@template_name]}  [#{cache_key}]" if stale.present?
+            lesmok_logger.debug  "[lesmok] STALE: #{stale}"
+            stale
+          else
+            nil
+          end
         end
 
         def calculate_cache_key_for(context)
