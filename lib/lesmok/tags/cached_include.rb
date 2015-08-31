@@ -47,7 +47,7 @@ module Lesmok
           result = cache_store.fetch(cache_key, expires_in: expire_in) do
             lesmok_logger.debug "[#{self.class}] --- cache miss on #{cache_key} in #{cache_store}!" if Lesmok.config.debugging?
             rendered_str = yield
-            if Lesmok.config.serve_stale_content? && rendered_str.present?
+            if Lesmok.config.serve_stale_content? && rendered_str.present? && context.errors.empty?
               stale_cache_store = select_cache_store_for(context, :stale)
               stale_cache_store.set(cache_key + STALE_BREAD_KEY_SUFFIX, rendered_str, expires_in: nil)
             end
