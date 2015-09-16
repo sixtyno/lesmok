@@ -9,7 +9,7 @@ describe ::Lesmok::Acid::Drop do
       def bad_params(arg, *args)
         raise ArgumentError.new("Do not delegate with arguments!!!")
       end
-      def bad_var=(new_var)
+      def bad_var=(new_var = nil)
         raise ArgumentError.new("Should NOT delegate to writer methods!!!")
       end
     end
@@ -21,6 +21,10 @@ describe ::Lesmok::Acid::Drop do
     described_class.new(source)
   end
 
+  it "refers to the source object" do
+    expect(drop.source_object).to be == source
+  end
+
   it "should delegate methods" do
     expect(drop.name).to  be_eql("John Doe")
     expect(drop.age).to   be == 37
@@ -28,15 +32,16 @@ describe ::Lesmok::Acid::Drop do
   end
 
   it "should not fails on non-existing methods" do
+    expect(drop.nonexistant_random_method).to be_nil
   end
 
-  it "should not delegate bang or writer methods" do
-    pending "(proper implementation)"
+  it "should not delegate bang / mutator methods" do
+    expect(drop.bad_bang!).to be == nil
+  end
+
+  it "should not delegate writer methods" do
     expect do
-      drop.bad_bang!
-    end.to raise_error(NoMethodError)
-    expect do
-      drop.bad_var = "Down boy!"
+      drop.bad_var = "Down, boy!"
     end.to raise_error(NoMethodError)
   end
 
