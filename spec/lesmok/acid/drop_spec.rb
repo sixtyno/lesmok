@@ -26,8 +26,8 @@ describe ::Lesmok::Acid::Drop do
   end
 
   it "should delegate methods" do
-    expect(drop.name).to  be_eql("John Doe")
-    expect(drop.age).to   be == 37
+    expect(drop.name).to  eql("John Doe")
+    expect(drop.age).to   eql(37)
     expect(drop.phone).to match(/^555.*/)
   end
 
@@ -36,7 +36,7 @@ describe ::Lesmok::Acid::Drop do
   end
 
   it "should not delegate bang / mutator methods" do
-    expect(drop.bad_bang!).to be == nil
+    expect(drop.bad_bang!).to be_nil
   end
 
   it "should not delegate writer methods" do

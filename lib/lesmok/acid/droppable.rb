@@ -37,8 +37,8 @@ module Lesmok
           end
         end
 
-        def allow_delegating_method_to_source?(name)
-          @source_object.respond_to?(name) && !(name.to_s =~ %r{[\=\\!]+\Z})
+        def allow_delegating_method_to_source?(method_name)
+          @source_object.respond_to?(method_name) && !(method_name.to_s =~ %r{[\=\\!]+\Z})
         end
 
         def respond_to_missing?(method_name, include_private = false)
