@@ -21,7 +21,11 @@ module Lesmok
 
         ## Liquify...
         def to_liquid
-          drop = @weak_liquid_drop && @weak_liquid_drop.weakref_alive? && @weak_liquid_drop.__getobj__
+          drop = begin
+            @weak_liquid_drop && @weak_liquid_drop.weakref_alive? && @weak_liquid_drop.__getobj__
+          rescue ::WeakRef::RefError => e
+            nil # Catch this due to a minor race condition possibility above.
+          end
           unless drop
             drop = liquify_dynamically
             @weak_liquid_drop = WeakRef.new(drop)
