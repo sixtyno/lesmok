@@ -1,3 +1,4 @@
+require 'weakref'
 module Lesmok
   module Acid
 
@@ -20,7 +21,16 @@ module Lesmok
 
         ## Liquify...
         def to_liquid
-          @liquid_drop ||= liquify_dynamically
+          drop = begin
+            @weak_liquid_drop && @weak_liquid_drop.weakref_alive? && @weak_liquid_drop.__getobj__
+          rescue ::WeakRef::RefError => e
+            nil # Catch this due to a minor race condition possibility above.
+          end
+          unless drop
+            drop = liquify_dynamically
+            @weak_liquid_drop = WeakRef.new(drop)
+          end
+          drop
         end
 
         ## Solidify
@@ -33,9 +43,8 @@ module Lesmok
         # or use generic AcidDrop if it can't be found.
         #
         def liquify_dynamically
-          return @liquid_drop if @liquid_drop
           klass = liquify_drop_klass || AcidDrop
-          @liquid_drop = klass.new(self)
+          klass.new(self)
         end
 
         ##
