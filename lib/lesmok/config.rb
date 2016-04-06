@@ -3,6 +3,7 @@ module Lesmok
     attr_accessor :logger
     attr_accessor :cache
     attr_accessor :caching_enabled
+    attr_accessor :serve_stale_content
     attr_accessor :available_cache_stores
     attr_accessor :debugging_enabled
     attr_accessor :raise_errors_enabled
@@ -19,8 +20,11 @@ module Lesmok
     end
 
     def caching?
-      return false if !@caching_enabled
-      @caching_enabled.kind_of?(Proc) ? @caching_enabled.call : true
+      check_dynamically_toggleable_setting(@caching_enabled)
+    end
+
+    def serve_stale_content?
+      check_dynamically_toggleable_setting(@serve_stale_content)
     end
 
     def find_cache_store(name = nil)
@@ -33,6 +37,18 @@ module Lesmok
 
     def rails?
       Object.const_defined? "Rails"
+    end
+
+
+    protected
+
+    ##
+    # Some settings can be changed at run-time from other parts of the system.
+    # Allow setting a `proc` to check this each time.
+    #
+    def check_dynamically_toggleable_setting(toggleable)
+      return false if !toggleable
+      toggleable.kind_of?(Proc) ? toggleable.call : true
     end
 
   end
